@@ -169,9 +169,7 @@
     </div>
 
     <script>
-        // ==================== 配置区域 ====================
-        var GAS_URL = 'https://script.google.com/macros/s/AKfycbxkhSfXpDZy1VSb0jSH7hBTD6-XcdCd6xW2xGoiMBb7HtGWvmlh3Rtb-7eCkCSeRUJ7/exec';
-        // ==================== 配置区域 ====================
+        var GAS_URL = 'https://script.google.com/macros/s/YOUR_SCRIPT_ID/exec';
 
         var mediaRecorder = null;
         var audioChunks = [];
@@ -210,7 +208,7 @@
         }
 
         function checkConfig() {
-            if (GAS_URL === 'https://script.google.com/macros/s/YOUR_SCRIPT_ID/exec' || GAS_URL.indexOf(
+            if (GAS_URL === 'https://script.google.com/macros/s/AKfycbyoft4_mjZ9Fm8TIzKD9iyglizn8w8OhU9RBC9Oedz6bV6qBhBys6mLSJ5fbJJErp9B/exec' || GAS_URL.indexOf(
                     'YOUR_SCRIPT_ID') !== -1) {
                 if (configWarningEl) {
                     configWarningEl.style.display = 'block';
@@ -301,9 +299,7 @@
             jsonpCallbackCounter++;
             var callbackName = 'jsonpCallback_' + jsonpCallbackCounter + '_' + Date.now();
 
-            // 将回调函数挂到 window 上
             window[callbackName] = function(data) {
-                // 清理
                 document.head.removeChild(scriptTag);
                 delete window[callbackName];
 
@@ -320,13 +316,9 @@
                 endRecordingState();
             };
 
-            // 构建 URL，base64 可能很长，用 POST 方式不可行，只能 GET
-            // 但 GET 有长度限制，所以需要分块或用其他方式
-            // 这里我们用 URL 安全的 base64 编码
             var encodedAudio = encodeURIComponent(base64Audio);
             var url = GAS_URL + '?audio=' + encodedAudio + '&callback=' + callbackName;
 
-            // 检查 URL 长度
             if (url.length > 8000) {
                 setStatus('音频数据太大，请缩短录音时间', true);
                 delete window[callbackName];
@@ -353,7 +345,6 @@
 
             checkConfig();
 
-            // 鼠标事件
             micBtn.addEventListener('mousedown', function(e) {
                 e.preventDefault();
                 if (!isRecording && !isProcessing) {
@@ -374,7 +365,6 @@
                 }
             });
 
-            // 触摸事件（移动端）
             micBtn.addEventListener('touchstart', function(e) {
                 e.preventDefault();
                 if (!isRecording && !isProcessing) {
