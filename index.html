@@ -1,0 +1,409 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>语音转文字 - 中英文混合识别</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+        .container {
+            background: rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(20px);
+            border-radius: 30px;
+            padding: 40px 30px;
+            width: 100%;
+            max-width: 500px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        h1 {
+            text-align: center;
+            color: #e0e0e0;
+            font-size: 24px;
+            margin-bottom: 10px;
+            font-weight: 300;
+            letter-spacing: 2px;
+        }
+        .subtitle {
+            text-align: center;
+            color: #888;
+            font-size: 12px;
+            margin-bottom: 30px;
+        }
+        .mic-wrapper {
+            display: flex;
+            justify-content: center;
+            margin-bottom: 30px;
+        }
+        .mic-btn {
+            width: 100px;
+            height: 100px;
+            border-radius: 50%;
+            border: 3px solid rgba(255, 255, 255, 0.3);
+            background: rgba(255, 255, 255, 0.05);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.3s ease;
+            outline: none;
+            -webkit-tap-highlight-color: transparent;
+            user-select: none;
+            position: relative;
+        }
+        .mic-btn:hover {
+            border-color: rgba(255, 255, 255, 0.6);
+            background: rgba(255, 255, 255, 0.1);
+        }
+        .mic-btn:active,
+        .mic-btn.recording {
+            border-color: #ff4757;
+            background: rgba(255, 71, 87, 0.2);
+            box-shadow: 0 0 40px rgba(255, 71, 87, 0.4);
+            animation: pulse 1.5s infinite;
+        }
+        .mic-btn.recording {
+            border-color: #ff4757;
+            background: rgba(255, 71, 87, 0.2);
+        }
+        @keyframes pulse {
+            0%,
+            100% {
+                box-shadow: 0 0 20px rgba(255, 71, 87, 0.4);
+            }
+            50% {
+                box-shadow: 0 0 50px rgba(255, 71, 87, 0.8);
+            }
+        }
+        .mic-icon {
+            width: 40px;
+            height: 40px;
+            fill: #ccc;
+            transition: fill 0.3s ease;
+        }
+        .mic-btn.recording .mic-icon {
+            fill: #ff4757;
+        }
+        .status {
+            text-align: center;
+            color: #aaa;
+            font-size: 14px;
+            margin-bottom: 20px;
+            min-height: 20px;
+            transition: color 0.3s ease;
+        }
+        .result-box {
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 16px;
+            padding: 20px;
+            min-height: 100px;
+            max-height: 300px;
+            overflow-y: auto;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        .result-label {
+            color: #888;
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            margin-bottom: 10px;
+        }
+        .result-text {
+            color: #e0e0e0;
+            font-size: 16px;
+            line-height: 1.6;
+            word-break: break-word;
+            white-space: pre-wrap;
+        }
+        .result-text:empty::after {
+            content: '点击麦克风开始录音...';
+            color: #555;
+            font-style: italic;
+        }
+        .error-text {
+            color: #ff6b6b;
+        }
+        .config-warning {
+            text-align: center;
+            color: #ff6b6b;
+            font-size: 13px;
+            margin-bottom: 15px;
+            padding: 10px;
+            background: rgba(255, 107, 107, 0.1);
+            border-radius: 8px;
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>语音转文字</h1>
+        <p class="subtitle">中英文混合识别 · 按住说话松开识别</p>
+        <div class="config-warning" id="configWarning">⚠️ 请先配置 GAS_URL</div>
+        <div class="mic-wrapper">
+            <button class="mic-btn" id="micBtn" title="按住录音，松开识别">
+                <svg class="mic-icon" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3z"/>
+                    <path d="M17 11c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-3.08c3.39-.49 6-3.39 6-6.92h-2z"/>
+                </svg>
+            </button>
+        </div>
+        <div class="status" id="status">准备就绪</div>
+        <div class="result-box">
+            <div class="result-label">识别结果</div>
+            <div class="result-text" id="resultText"></div>
+        </div>
+    </div>
+
+    <script>
+        // ==================== 配置区域 ====================
+        var GAS_URL = 'https://script.google.com/macros/s/AKfycbxkhSfXpDZy1VSb0jSH7hBTD6-XcdCd6xW2xGoiMBb7HtGWvmlh3Rtb-7eCkCSeRUJ7/exec';
+        // ==================== 配置区域 ====================
+
+        var mediaRecorder = null;
+        var audioChunks = [];
+        var isRecording = false;
+        var micBtn = null;
+        var statusEl = null;
+        var resultTextEl = null;
+        var configWarningEl = null;
+        var isProcessing = false;
+        var jsonpCallbackCounter = 0;
+
+        function setStatus(msg, isError) {
+            if (statusEl) {
+                statusEl.textContent = msg;
+                statusEl.style.color = isError ? '#ff6b6b' : '#aaa';
+            }
+        }
+
+        function updateResult(text, isError) {
+            if (resultTextEl) {
+                if (isError) {
+                    resultTextEl.innerHTML = '<span class="error-text">' + text.replace(/</g, '&lt;').replace(/>/g,
+                        '&gt;') + '</span>';
+                } else {
+                    resultTextEl.textContent = text;
+                }
+            }
+        }
+
+        function endRecordingState() {
+            isProcessing = false;
+            isRecording = false;
+            if (micBtn) {
+                micBtn.classList.remove('recording');
+            }
+        }
+
+        function checkConfig() {
+            if (GAS_URL === 'https://script.google.com/macros/s/YOUR_SCRIPT_ID/exec' || GAS_URL.indexOf(
+                    'YOUR_SCRIPT_ID') !== -1) {
+                if (configWarningEl) {
+                    configWarningEl.style.display = 'block';
+                }
+                setStatus('请先配置 GAS_URL', true);
+                return false;
+            }
+            if (configWarningEl) {
+                configWarningEl.style.display = 'none';
+            }
+            return true;
+        }
+
+        function arrayBufferToBase64(buffer) {
+            var binary = '';
+            var bytes = new Uint8Array(buffer);
+            var len = bytes.byteLength;
+            for (var i = 0; i < len; i++) {
+                binary += String.fromCharCode(bytes[i]);
+            }
+            return window.btoa(binary);
+        }
+
+        async function startRecording() {
+            if (isProcessing) return;
+            if (!checkConfig()) return;
+
+            try {
+                var stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                audioChunks = [];
+                var mimeType = MediaRecorder.isTypeSupported('audio/webm;codecs=opus') ?
+                    'audio/webm;codecs=opus' : 'audio/webm';
+                mediaRecorder = new MediaRecorder(stream, { mimeType: mimeType });
+
+                mediaRecorder.ondataavailable = function(event) {
+                    if (event.data.size > 0) {
+                        audioChunks.push(event.data);
+                    }
+                };
+
+                mediaRecorder.onstop = function() {
+                    stream.getTracks().forEach(function(track) { track.stop(); });
+                    if (audioChunks.length === 0) {
+                        setStatus('没有录制到音频', true);
+                        endRecordingState();
+                        return;
+                    }
+                    processAudio();
+                };
+
+                mediaRecorder.start();
+                isRecording = true;
+                micBtn.classList.add('recording');
+                setStatus('正在录音...松开按钮结束');
+            } catch (err) {
+                setStatus('麦克风访问失败: ' + err.message, true);
+                console.error('麦克风错误:', err);
+            }
+        }
+
+        function stopRecording() {
+            if (mediaRecorder && mediaRecorder.state === 'recording') {
+                mediaRecorder.stop();
+                setStatus('正在识别...');
+                isProcessing = true;
+            }
+        }
+
+        function processAudio() {
+            var audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+            var reader = new FileReader();
+
+            reader.onload = function() {
+                var base64Audio = arrayBufferToBase64(reader.result);
+                base64Audio = base64Audio.replace(/^data:.*?;base64,/, '');
+                submitViaJSONP(base64Audio);
+            };
+
+            reader.onerror = function() {
+                setStatus('读取音频失败', true);
+                endRecordingState();
+            };
+
+            reader.readAsArrayBuffer(audioBlob);
+        }
+
+        function submitViaJSONP(base64Audio) {
+            jsonpCallbackCounter++;
+            var callbackName = 'jsonpCallback_' + jsonpCallbackCounter + '_' + Date.now();
+
+            // 将回调函数挂到 window 上
+            window[callbackName] = function(data) {
+                // 清理
+                document.head.removeChild(scriptTag);
+                delete window[callbackName];
+
+                if (data.error) {
+                    setStatus('识别失败: ' + data.error, true);
+                    updateResult('错误: ' + data.error, true);
+                } else if (data.text !== undefined) {
+                    setStatus('识别完成 ✓');
+                    updateResult(data.text, false);
+                } else {
+                    setStatus('未知响应格式', true);
+                    updateResult('未知响应: ' + JSON.stringify(data), true);
+                }
+                endRecordingState();
+            };
+
+            // 构建 URL，base64 可能很长，用 POST 方式不可行，只能 GET
+            // 但 GET 有长度限制，所以需要分块或用其他方式
+            // 这里我们用 URL 安全的 base64 编码
+            var encodedAudio = encodeURIComponent(base64Audio);
+            var url = GAS_URL + '?audio=' + encodedAudio + '&callback=' + callbackName;
+
+            // 检查 URL 长度
+            if (url.length > 8000) {
+                setStatus('音频数据太大，请缩短录音时间', true);
+                delete window[callbackName];
+                endRecordingState();
+                return;
+            }
+
+            var scriptTag = document.createElement('script');
+            scriptTag.src = url;
+            scriptTag.onerror = function() {
+                document.head.removeChild(scriptTag);
+                delete window[callbackName];
+                setStatus('请求失败，请检查网络或 GAS 配置', true);
+                endRecordingState();
+            };
+            document.head.appendChild(scriptTag);
+        }
+
+        function init() {
+            micBtn = document.getElementById('micBtn');
+            statusEl = document.getElementById('status');
+            resultTextEl = document.getElementById('resultText');
+            configWarningEl = document.getElementById('configWarning');
+
+            checkConfig();
+
+            // 鼠标事件
+            micBtn.addEventListener('mousedown', function(e) {
+                e.preventDefault();
+                if (!isRecording && !isProcessing) {
+                    startRecording();
+                }
+            });
+
+            micBtn.addEventListener('mouseup', function(e) {
+                e.preventDefault();
+                if (isRecording && !isProcessing) {
+                    stopRecording();
+                }
+            });
+
+            micBtn.addEventListener('mouseleave', function(e) {
+                if (isRecording && !isProcessing) {
+                    stopRecording();
+                }
+            });
+
+            // 触摸事件（移动端）
+            micBtn.addEventListener('touchstart', function(e) {
+                e.preventDefault();
+                if (!isRecording && !isProcessing) {
+                    startRecording();
+                }
+            });
+
+            micBtn.addEventListener('touchend', function(e) {
+                e.preventDefault();
+                if (isRecording && !isProcessing) {
+                    stopRecording();
+                }
+            });
+
+            micBtn.addEventListener('touchcancel', function(e) {
+                e.preventDefault();
+                if (isRecording && !isProcessing) {
+                    stopRecording();
+                }
+            });
+
+            setStatus('准备就绪');
+        }
+
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', init);
+        } else {
+            init();
+        }
+    </script>
+</body>
+</html>
